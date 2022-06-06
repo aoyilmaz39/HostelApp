@@ -1,0 +1,10 @@
+<RCC>
+  <qresource prefix="icon">
+    <file>arkaplan.png</file>
+    <file>bos.png</file>
+    <file>dolu.png</file>
+    <file>home_icon.png</file>
+    <file>songun.png</file>
+    <file>bitti.png</file>
+  </qresource>
+</RCC>
