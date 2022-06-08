@@ -93,10 +93,10 @@ class Motel(QWidget):
             mn=mas[0]+" TL *({} Gün)".format(kg)
             toplammasraf = [mn]
             for b in urunler:
-                nn=masraf.split(" ")
+                nn=masraf.split("\n")
                 k=0
                 for q in nn:
-                    if q == b.urun:
+                    if q == " "+b.urun+" : "+str(b.fiyati)+" ":
                         k+=1
                 if k == 0:
                     pass
@@ -110,8 +110,8 @@ class Motel(QWidget):
             self.ui.hesap_gosterge.display(str(odabilgi.thesap))
 
     def odafiyatpencere(self):
-        if self.ui.ekran_label.text() == "" or self.ui.ekran_label.text().endswith("seçiniz."):
-            return self.ui.ekran_label.setText("Lütfen oda seçiniz.")
+        if self.ui.ekran_label.text() == "" or self.ui.ekran_label.text().endswith("seçiniz.") or self.ui.ekran_label.text() != "{}. Numaralı oda boş.".format(odano):
+            return self.ui.ekran_label.setText("Lütfen boş bir oda seçiniz.")
         else:
             self.odapencere=QMainWindow()
             self.ofw=Ui_odafiyat_window()
@@ -151,20 +151,22 @@ class Motel(QWidget):
         elif self.ui.ekran_label.text().endswith("boş."):
             return self.ui.urun_fiyat_label.setText("Dolu bir oda seçiniz.")
         elif self.ui.urun_listesi_QlistWidget.currentItem() is None:
-            self.ui.urun_fiyat_label.setText("Bir ürün seçiniz.")
+            self.ui.urun_fiyat_label.setText("Lütfen bir ürün seçiniz.")
         elif self.ui.urun_fiyat_label.text() == "Bir ürün seçiniz.":
-            self.ui.urun_fiyat_label.setText("Bir ürün seçiniz.")
+            self.ui.urun_fiyat_label.setText("Lütfen bir ürün seçiniz.")
         else:
             item = self.ui.urun_listesi_QlistWidget.currentItem()
             urunisim = item.text()
-            urunfiyat = self.ui.urun_fiyat_label.text()
-            urunfiyat = urunfiyat.rstrip("  TL")
+            if self.ui.urun_fiyat_label.text() == "Bu ürün bulunmamakta. " or self.ui.urun_fiyat_label.text() == "Lütfrn ürün seçiniz." :
+                return self.ui.urun_fiyat_label.setText("Lütfen ürün seçiniz.")
+            urunfiyat = Satis.query.filter_by(urun=item.text()).first()
+            urunfiyat = urunfiyat.fiyati
             odabilgi = eval(f"Oda{odano}.query.get(1)")
 
-            masraf = int(urunfiyat)+odabilgi.thesap
+            masraf = urunfiyat + odabilgi.thesap
             odabilgi.thesap = masraf
 
-            odabilgi.odamasraf = odabilgi.odamasraf +urunisim + " : " + urunfiyat + " \n "
+            odabilgi.odamasraf = odabilgi.odamasraf +urunisim + " : " + str(urunfiyat) + " \n "
             db.session.commit()
             self.hesaplistele(self)
 
@@ -191,10 +193,16 @@ class Motel(QWidget):
         elif int(yenitarih[1]) == int(gtarih[1]) and int(yenitarih[0]) <= int(gtarih[0]):
             return self.tarihui.degistirildi_label.setText("Çıkış tarihiniz geçmiş yada uzak bir zaman olamaz.")
         else:
+            cik = user.ctarih.split(".")
+            kg = (date(int(yenitarih[2]), int(yenitarih[1]), int(yenitarih[0])) - date(int(cik[2]), int(cik[1]), int(cik[0]))).days
+            oda = Odafiyat.query.filter_by(odalar="Oda{}".format(odano)).first()
+            oda = oda.fiyat*kg
+            print(oda)
+            user.thesap += oda
             user.ctarih = self.tarihui.new_date_edit.text()
             db.session.commit()
-            return self.tarihui.degistirildi_label.setText("Çıkış tarihi başarıyla değiştirildi.")
             self.hesaplistele(self)
+            return self.tarihui.degistirildi_label.setText("Çıkış tarihi başarıyla değiştirildi.")
 
     def uruncikar(self):
         item = self.ui.urun_listesi_QlistWidget.currentItem()
@@ -202,38 +210,37 @@ class Motel(QWidget):
             return self.ui.urun_fiyat_label.setText("Lütfen oda seçiniz.")
         elif self.ui.ekran_label.text().endswith("boş."):
             return self.ui.urun_fiyat_label.setText("Dolu bir oda seçiniz.")
+        elif item is None:
+            print("None girdi")
+            return self.ui.urun_fiyat_label.setText("Lütfen ürün seçiniz.")
 
         odabilgi=eval(f"Oda{odano}.query.get(1)")
-        fiyat = self.ui.urun_fiyat_label.text()
-        if item is None:
-            self.ui.urun_fiyat_label.setText("Lütfen ürün seçiniz.")
-        elif self.ui.ekran_label.text()[-4:] == "":
-            self.ui.urun_fiyat_label.setText("Lütfen Oda seçiniz.")
+        fiyat=Satis.query.filter_by(urun=item.text()).first()
+        fiyat=fiyat.fiyati
+
+        silinecek = " "+item.text()+ " : " + str(fiyat)+" "
+        liste = odabilgi.odamasraf
+        liste=liste.split("\n")
+        son = ""
+        if silinecek in liste:
+            pass
         else:
-            silinecek = item.text()+ " : " + fiyat[:-3].strip()
-            liste = odabilgi.odamasraf
-            liste=liste.split("\n")
-            son = ""
-            if silinecek in liste:
-                pass
+            return self.ui.urun_fiyat_label.setText("Bu ürün bulunmamakta. ")
+        for i in liste:
+            if i == silinecek:
+                liste.remove(i)
+                for i in liste:
+                    son += i + "\n"
+                break
             else:
-                self.ui.urun_fiyat_label.setText("Bu ürün bulunmamakta. ")
-                return
-            for i in liste:
-                if i == silinecek.strip():
-                    liste.remove(i)
-                    for i in liste:
-                        son += i + "\n"
-                    break
-                else:
-                    pass
-            son=son[:-1]
-            odabilgi = eval(f"Oda{odano}.query.get(1)")
-            odabilgi.odamasraf = son
-            a=odabilgi.thesap - int(fiyat[:-3])
-            odabilgi.thesap = a
-            db.session.commit()
-            self.hesaplistele(self)
+                pass
+        son=son[:-1]
+        odabilgi = eval(f"Oda{odano}.query.get(1)")
+        odabilgi.odamasraf = son
+        a=odabilgi.thesap - fiyat
+        odabilgi.thesap = a
+        db.session.commit()
+        self.hesaplistele(self)
 
     def odagiris(self):
             oda = "Oda{}".format(odano)
